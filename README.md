@@ -16,47 +16,82 @@
 
 ## 🏛️ System Architecture
 
-```text
-                               +------------------------------------+
-                               |          USER SPACE (Ring 3)        |
-                               |  +------------------------------+  |
-                               |  |  DOOM Engine (doom.elf)      |  |
-                               |  |  Interactive Shell Terminal  |  |
-                               |  |  User Applications (ELF64)   |  |
-                               |  +------------------------------+  |
-                               |                 |                  |
-                               |  +------------------------------+  |
-                               |  |  Freestanding C Libc         |  |
-                               |  |  (stdio, stdlib, string,     |  |
-                               |  |   math, setjmp/longjmp)      |  |
-                               |  +------------------------------+  |
-                               +-----------------+------------------+
-                                                 |
-                                     Syscalls (int 0x80)
-                                                 |
-+------------------------------------------------v----------------------------------------+
-|                                  KERNEL SPACE (Ring 0)                                  |
-|                                                                                         |
-|  +-------------------------+  +--------------------------+  +------------------------+  |
-|  |     Memory Manager      |  |     Task Management      |  |   Graphics & Display   |  |
-|  |  - Bitmap PMM (4KB)     |  |  - Ring 3 Context Switch |  |  - UEFI GOP Framebuf   |  |
-|  |  - 4-Level PML4 VMM     |  |  - System V ABI Align    |  |  - Double-LUT Compositor| |
-|  |  - Dynamic Heap (SBRK)  |  |  - Local APIC Preemption |  |  - Windowing System    |  |
-|  +-------------------------+  +--------------------------+  +------------------------+  |
-|                                                                                         |
-|  +-------------------------+  +--------------------------+  +------------------------+  |
-|  |   Storage & Filesystem  |  |   Interrupts & Timers    |  |   Device Drivers       |  |
-|  |  - Virtual File System  |  |  - IDT & ISR Exception   |  |  - PS/2 Keyboard       |  |
-|  |  - Cached FAT32 Driver  |  |  - Local APIC (100 Hz)   |  |  - PS/2 Mouse          |  |
-|  |  - Primary ATA PIO IDE  |  |  - I/O APIC Routing      |  |  - 16550 UART Serial   |  |
-|  +-------------------------+  +--------------------------+  +------------------------+  |
-+------------------------------------------------+----------------------------------------+
-                                                 |
-                               +-----------------v------------------+
-                               |         HARDWARE PLATFORM          |
-                               |   x86_64 CPU (SSE/FPU Enabled)     |
-                               |   RAM / APIC / Storage / Framebuf  |
-                               +------------------------------------+
+```mermaid
+flowchart TD
+    subgraph UserSpace ["🖥️ USER SPACE (Ring 3)"]
+        direction TB
+        subgraph Apps ["User Applications (ELF64)"]
+            DoomApp["🎮 DOOM Engine (doom.elf)"]
+            ShellApp["💻 Desktop Shell & Terminal"]
+            UserApp["⚡ User Binaries (hello.elf)"]
+        end
+        subgraph LibcLayer ["📚 Freestanding C Standard Library (libc)"]
+            Stdio["stdio (Filesystem I/O & vsnprintf)"]
+            Stdlib["stdlib (malloc / free / calloc)"]
+            StringMath["string & software math / setjmp"]
+        end
+        Apps --> LibcLayer
+    end
+
+    UserSpace ===|"⚡ System Call Boundary (int 0x80 / System V x86_64 ABI)"| KernelSpace
+
+    subgraph KernelSpace ["🛡️ MONOLITHIC KERNEL (Ring 0)"]
+        direction TB
+        
+        subgraph CoreSub ["🧠 Core & Task Scheduling"]
+            GDT_IDT["GDT / IDT & Exception ISRs"]
+            Scheduler["Preemptive Round-Robin Scheduler"]
+            ContextSwitch["Ring 3 Context Switch (iretq)"]
+        end
+
+        subgraph MemorySub ["💾 Memory Management"]
+            PMM["Physical Memory Manager (4KB Bitmap)"]
+            VMM["Virtual Memory Manager (4-Level PML4)"]
+            Heap["Dynamic Heap Allocator (SYS_SBRK)"]
+        end
+
+        subgraph FileSub ["📁 Storage & Filesystems"]
+            VFS["Virtual File System (VFS)"]
+            FAT32["Cached FAT32 Driver (Sector/Cluster RAM Cache)"]
+            ATA["Primary ATA PIO IDE Driver"]
+        end
+
+        subgraph DisplaySub ["🖼️ Graphics & GUI Engine"]
+            Compositor["Double-LUT Framebuffer Scaler"]
+            FontEngine["8x8 Bitmap Font & Window Manager"]
+        end
+
+        subgraph DeviceSub ["🔌 Hardware & Interrupts"]
+            APIC["Local APIC Periodic Timer (100 Hz Clock)"]
+            IOAPIC["I/O APIC IRQ Redirection"]
+            PS2["PS/2 Keyboard & Mouse Drivers"]
+        end
+
+        CoreSub <--> MemorySub
+        FileSub <--> MemorySub
+        DisplaySub <--> DeviceSub
+    end
+
+    KernelSpace ===|"Direct Hardware Control & Port I/O"| HardwarePlatform
+
+    subgraph HardwarePlatform ["⚙️ BARE-METAL HARDWARE PLATFORM"]
+        CPU["x86_64 CPU (CR0/CR4 SSE Enabled)"]
+        RAM["Physical RAM (UEFI Memory Map)"]
+        Disk["ATA Hard Disk (fat.img / DOOM1.WAD)"]
+        Display["UEFI GOP Linear Framebuffer (32-bit ARGB)"]
+        Peripherals["PS/2 Keyboard, Mouse & UART Serial"]
+    end
+
+    %% Style Classes
+    classDef userApp fill:#1f2937,stroke:#3b82f6,stroke-width:2px,color:#fff;
+    classDef libcBox fill:#111827,stroke:#60a5fa,stroke-width:1px,color:#93c5fd;
+    classDef kernelBox fill:#1e1e2e,stroke:#10b981,stroke-width:2px,color:#fff;
+    classDef hwBox fill:#27272a,stroke:#f59e0b,stroke-width:2px,color:#fef3c7;
+
+    class DoomApp,ShellApp,UserApp userApp;
+    class Stdio,Stdlib,StringMath libcBox;
+    class GDT_IDT,Scheduler,ContextSwitch,PMM,VMM,Heap,VFS,FAT32,ATA,Compositor,FontEngine,APIC,IOAPIC,PS2 kernelBox;
+    class CPU,RAM,Disk,Display,Peripherals hwBox;
 ```
 
 ---
