@@ -145,14 +145,14 @@ docker run --rm -v "${PWD}:/os" os-builder make -B iso
 ```bash
 # Convert raw disk to VDI and start VM
 VBoxManage convertfromraw build/fat.img build/fat.vdi --format VDI
-VBoxManage storageattach "mallu" --storagectl "IDE" --port 0 --device 0 --type hdd --medium build/fat.vdi
-VBoxManage startvm "mallu"
+VBoxManage storageattach "MyOS" --storagectl "IDE" --port 0 --device 0 --type hdd --medium build/fat.vdi
+VBoxManage startvm "MyOS"
 ```
 
 ### 3. Launching DOOM
 Once the desktop graphical terminal loads, type:
 ```bash
-myos$ mallu doom.elf
+myos$ run doom.elf
 ```
 
 ---

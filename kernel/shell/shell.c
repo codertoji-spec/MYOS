@@ -155,7 +155,7 @@ static void cmd_help(void) {
     shell_puts("  help           - show this message\n");
     shell_puts("  ls             - list files on disk\n");
     shell_puts("  cat <file>     - print file contents\n");
-    shell_puts("  mallu <file>   - execute an ELF binary\n");
+    shell_puts("  run <file>     - execute an ELF binary\n");
     shell_puts("  clear          - clear the terminal\n");
     shell_puts("  uname          - show system information\n");
 }
@@ -200,13 +200,13 @@ static void cmd_cat(const char *filename) {
     shell_puts("\n");
 }
 
-static void cmd_mallu(const char *filename) {
+static void cmd_run(const char *filename) {
     if (!filename || !filename[0]) {
-        shell_puts_color("Usage: mallu <filename>\n", FG_ERROR); return;
+        shell_puts_color("Usage: run <filename>\n", FG_ERROR); return;
     }
     vfs_node_t *node = vfs_open(filename);
     if (!node) {
-        shell_puts_color("mallu: not found: ", FG_ERROR);
+        shell_puts_color("run: not found: ", FG_ERROR);
         shell_puts(filename); shell_puts("\n"); return;
     }
     shell_puts("Loading: "); shell_puts(filename); shell_puts("\n");
@@ -255,9 +255,8 @@ static void dispatch(const char *line) {
     else if (str_eq(line, "ls"))     cmd_ls();
     else if (str_eq(line, "clear"))  cmd_clear();
     else if (str_eq(line, "uname"))  cmd_uname();
-    else if (str_startswith(line, "cat "))    cmd_cat(skip_spaces(line + 4));
-    else if (str_startswith(line, "mallu "))  cmd_mallu(skip_spaces(line + 6));
-    else if (str_startswith(line, "run "))    cmd_mallu(skip_spaces(line + 4));
+    else if (str_startswith(line, "cat "))  cmd_cat(skip_spaces(line + 4));
+    else if (str_startswith(line, "run "))  cmd_run(skip_spaces(line + 4));
     else {
         shell_puts_color("Unknown command: ", FG_ERROR);
         shell_puts(line); shell_puts("\n");
