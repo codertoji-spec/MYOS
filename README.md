@@ -6,7 +6,7 @@
 [![Privilege](https://img.shields.io/badge/Privilege%20Levels-Ring%200%20%7C%20Ring%203-darkgreen.svg?style=for-the-badge)](https://github.com/codertoji-spec/MYOS)
 [![Bootloader](https://img.shields.io/badge/Boot-UEFI%20%2F%20GOP-purple.svg?style=for-the-badge)](https://github.com/codertoji-spec/MYOS)
 [![Toolchain](https://img.shields.io/badge/Toolchain-LLVM%20%2F%20Clang%20%2F%20LLD-orange.svg?style=for-the-badge)](https://github.com/codertoji-spec/MYOS)
-[![Application](https://img.shields.io/badge/Gaming-DOOM%20(User--Mode)-red.svg?style=for-the-badge)](https://github.com/codertoji-spec/MYOS)
+[![Application](https://img.shields.io/badge/Application-DOOM%20(User--Mode)-red.svg?style=for-the-badge)](https://github.com/codertoji-spec/MYOS)
 
 **A high-performance, freestanding 64-bit operating system engineered from scratch in C and x86_64 Assembly, featuring hardware memory management, preemptive scheduling, a cached FAT32 VFS, a graphical compositor, a freestanding C standard library, and a full user-mode port of classic DOOM.**
 
@@ -14,18 +14,18 @@
 
 ---
 
-## 🏛️ System Architecture
+## System Architecture
 
 ```mermaid
 flowchart TD
-    subgraph UserSpace ["🖥️ USER SPACE (Ring 3)"]
+    subgraph UserSpace ["USER SPACE (Ring 3)"]
         direction TB
         subgraph Apps ["User Applications (ELF64)"]
-            DoomApp["🎮 DOOM Engine (doom.elf)"]
-            ShellApp["💻 Desktop Shell & Terminal"]
-            UserApp["⚡ User Binaries (hello.elf)"]
+            DoomApp["DOOM Engine (doom.elf)"]
+            ShellApp["Desktop Shell & Terminal"]
+            UserApp["User Binaries (hello.elf)"]
         end
-        subgraph LibcLayer ["📚 Freestanding C Standard Library (libc)"]
+        subgraph LibcLayer ["Freestanding C Standard Library (libc)"]
             Stdio["stdio (Filesystem I/O & vsnprintf)"]
             Stdlib["stdlib (malloc / free / calloc)"]
             StringMath["string & software math / setjmp"]
@@ -33,35 +33,35 @@ flowchart TD
         Apps --> LibcLayer
     end
 
-    UserSpace ===|"⚡ System Call Boundary (int 0x80 / System V x86_64 ABI)"| KernelSpace
+    UserSpace ===|"System Call Boundary (int 0x80 / System V x86_64 ABI)"| KernelSpace
 
-    subgraph KernelSpace ["🛡️ MONOLITHIC KERNEL (Ring 0)"]
+    subgraph KernelSpace ["MONOLITHIC KERNEL (Ring 0)"]
         direction TB
         
-        subgraph CoreSub ["🧠 Core & Task Scheduling"]
+        subgraph CoreSub ["Core & Task Scheduling"]
             GDT_IDT["GDT / IDT & Exception ISRs"]
             Scheduler["Preemptive Round-Robin Scheduler"]
             ContextSwitch["Ring 3 Context Switch (iretq)"]
         end
 
-        subgraph MemorySub ["💾 Memory Management"]
+        subgraph MemorySub ["Memory Management"]
             PMM["Physical Memory Manager (4KB Bitmap)"]
             VMM["Virtual Memory Manager (4-Level PML4)"]
             Heap["Dynamic Heap Allocator (SYS_SBRK)"]
         end
 
-        subgraph FileSub ["📁 Storage & Filesystems"]
+        subgraph FileSub ["Storage & Filesystems"]
             VFS["Virtual File System (VFS)"]
             FAT32["Cached FAT32 Driver (Sector/Cluster RAM Cache)"]
             ATA["Primary ATA PIO IDE Driver"]
         end
 
-        subgraph DisplaySub ["🖼️ Graphics & GUI Engine"]
+        subgraph DisplaySub ["Graphics & GUI Engine"]
             Compositor["Double-LUT Framebuffer Scaler"]
             FontEngine["8x8 Bitmap Font & Window Manager"]
         end
 
-        subgraph DeviceSub ["🔌 Hardware & Interrupts"]
+        subgraph DeviceSub ["Hardware & Interrupts"]
             APIC["Local APIC Periodic Timer (100 Hz Clock)"]
             IOAPIC["I/O APIC IRQ Redirection"]
             PS2["PS/2 Keyboard & Mouse Drivers"]
@@ -74,7 +74,7 @@ flowchart TD
 
     KernelSpace ===|"Direct Hardware Control & Port I/O"| HardwarePlatform
 
-    subgraph HardwarePlatform ["⚙️ BARE-METAL HARDWARE PLATFORM"]
+    subgraph HardwarePlatform ["BARE-METAL HARDWARE PLATFORM"]
         CPU["x86_64 CPU (CR0/CR4 SSE Enabled)"]
         RAM["Physical RAM (UEFI Memory Map)"]
         Disk["ATA Hard Disk (fat.img / DOOM1.WAD)"]
@@ -96,42 +96,42 @@ flowchart TD
 
 ---
 
-## 🌟 Key Subsystems & Engineering Highlights
+## Key Subsystems & Engineering Highlights
 
-### 1. 🎛️ CPU Initialization & Privilege Separation (Ring 0 / Ring 3)
+### 1. CPU Initialization & Privilege Separation (Ring 0 / Ring 3)
 - **64-bit Long Mode Bootstrapping**: Booted via a custom 64-bit UEFI bootloader (`BOOTX64.EFI`) establishing identity paging and acquiring the UEFI Graphics Output Protocol (GOP) linear framebuffer.
 - **GDT / IDT & Exception Handling**: Configured Global Descriptor Tables with Kernel and User Code/Data descriptors, Task State Segment (TSS), and 256-vector Interrupt Descriptor Table.
 - **Hardware SSE / SIMD Vectorization**: Enabled hardware floating point and SSE instructions by clearing `CR0.EM`, asserting `CR0.MP`, and activating `CR4.OSFXSR` (bit 9) and `CR4.OSXMMEXCPT` (bit 10) to support compiler vectorization (`movaps`/`movups`).
 - **System V x86_64 ABI Compliance**: Enforced strict 16-byte stack alignment (`RSP % 16 == 8` prior to function invocation) across user thread initialization and interrupt returns (`iretq`).
 
-### 2. 🧠 Memory Management Architecture
+### 2. Memory Management Architecture
 - **Physical Memory Manager (PMM)**: High-performance bitmap allocator tracking individual 4KB physical pages across all available RAM descriptors reported by UEFI.
 - **Virtual Memory Manager (VMM)**: Hierarchical 4-level paging (`PML4` -> `PDPT` -> `PD` -> `PT`) providing identity-mapped physical memory alongside isolated, user-space virtual address spaces.
 - **Dynamic User Heap Allocation**: Kernel `SYS_SBRK` dynamically allocates and maps non-contiguous physical pages contiguously into the process's virtual heap.
 
-### 3. ⏱️ Interrupts & Real-Time APIC Clock
+### 3. Interrupts & Real-Time APIC Clock
 - **Local APIC Periodic Timer**: Calibrated at 100 Hz (10 ms period) to drive preemptive scheduling and deliver accurate real-time clock timestamps via `SYS_GETTICKS`.
 - **I/O APIC Routing**: Interrupt redirection table routing hardware IRQ lines (PS/2 Keyboard IRQ 1, Mouse IRQ 12) directly to Local APIC interrupt vectors.
 
-### 4. 💾 Storage & Cached FAT32 Virtual File System (VFS)
+### 4. Storage & Cached FAT32 Virtual File System (VFS)
 - **ATA PIO IDE Driver**: Direct port I/O disk sector reading and writing.
 - **Sector & Cluster RAM Caching**: Implemented transparent FAT sector buffer caching and cluster lookups, eliminating redundant disk I/O when streaming multi-megabyte binary assets (e.g. `DOOM1.WAD`).
 
-### 5. 📚 Freestanding C Standard Library (`libc`)
+### 5. Freestanding C Standard Library (`libc`)
 Custom-built runtime library enabling standard C application compilation:
 - **`stdio`**: POSIX file descriptor table, `fopen`, `fread`, `fwrite`, `fseek`, `ftell`, `fclose`, and a formatting engine (`vsnprintf`/`snprintf`) supporting `%d`, `%u`, `%x`, `%p`, `%s`, and custom width/precision/zero-padding (`%.3d`, `%03d`).
 - **`stdlib` / `string`**: `malloc`, `free`, `calloc`, `realloc`, `memmove`, `memcpy`, `strncmp`, `strncasecmp`, `strrchr`, `strstr`.
 - **`math`**: Software floating-point functions (`sin`, `cos`, `tan`, `sqrt`, `fabs`, `floor`, `ceil`, `pow`, `atan2`).
 - **`setjmp`**: Assembly implementation of `setjmp` and `longjmp` for non-local control flow.
 
-### 6. 🖼️ Framebuffer Compositor & DOOM Graphics Engine
+### 6. Framebuffer Compositor & DOOM Graphics Engine
 - **Double-LUT Nearest-Neighbor Scaler**: High-performance scaling algorithm using precomputed horizontal (`doom_x_table`) and vertical (`doom_y_table`) lookup tables to blit 640×400 game frames to high-resolution display outputs with zero division overhead.
 - **Real-Time Physics Lock**: Synchronized game ticks to exact 35.0 FPS physics tickrate.
 - **Full Hardware Key Event Pipeline**: Interrupt-driven key queue routing scancodes directly to DOOM actions (<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>, Arrows, <kbd>Ctrl</kbd> to Shoot, <kbd>Space</kbd> to Use, <kbd>Enter</kbd>, <kbd>Esc</kbd>).
 
 ---
 
-## 🕹️ System Call Interface (`int 0x80`)
+## System Call Interface (`int 0x80`)
 
 | Vector | Syscall | Arguments | Return Value | Description |
 |:---:|:---|:---|:---|:---|
@@ -148,7 +148,7 @@ Custom-built runtime library enabling standard C application compilation:
 
 ---
 
-## 🎮 Game Controls (DOOM)
+## Game Controls (DOOM)
 
 | Action | Controls |
 |---|---|
@@ -164,7 +164,7 @@ Custom-built runtime library enabling standard C application compilation:
 
 ---
 
-## 🛠️ Building & Running
+## Building & Running
 
 ### Prerequisites
 - **Docker Desktop** (for reproducible Linux cross-compilation toolchain: Clang, LLD, mtools, dosfstools).
@@ -192,7 +192,7 @@ myos$ run doom.elf
 
 ---
 
-## 📂 Repository Structure
+## Repository Structure
 
 ```text
 .
@@ -220,5 +220,5 @@ myos$ run doom.elf
 
 ---
 
-## 📜 License
+## License
 This project is open-source under the MIT License. DOOM and `DOOM1.WAD` are copyright © id Software / ZeniMax Media Inc.
